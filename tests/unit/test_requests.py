@@ -60,7 +60,7 @@ class TestValidateAPIData:
 
     def test_no_matching_nation(self):
         with pytest.raises(InvalidRequest):
-            data = {"error": "Nation doesn't exists."}
+            data = {"error": "Nation doesn't exist."}
             validate_api_data(data)
 
     def test_no_matching_city(self):

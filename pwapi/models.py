@@ -1,8 +1,5 @@
 """ Classes representing game objects returned by the various APIs
 
-Every attribute that is retyped within a class will have a comment noting the original bad return type, and where
-applicable, which API returned it
-
 Classes
 --------
 
@@ -10,18 +7,26 @@ NationsStub - individual nation data from Nations API
 BaseNation - Parent class for Nation and Member
 Nation - represents in-game nation from Nation API Data
 Member - represents a member nation from the Alliance_Member API
-MemberComplete - Combines Nation and Member class to provide all accessible nation data
+CompleteMember - Combines Nation and Member class to provide all accessible nation data
 """
+
+from pwapi import formulas
 
 
 class NationsStub:
     """Representation of Nations API data
 
     The NationStub object contains the parameters returned for each nation by the PW Nations API. This API returns a
-    stub of the data covered in the Nation API and Alliance_Members API, and is thus used as a parent class for both """
+    stub of the data covered in the Nation API and Alliance_Members API, and is thus used as a parent class for both
+
+    Methods
+    -------------
+
+    war_range: returns a dictionary containing the offensive and defensive war ranges for the nation"""
+
 
     __slots__ = ["nation_id", "nation", "ruler", "war_policy", "color", "alliance", "alliance_id", "alliance_position",
-                 "city_count", "infrastructure", "offensive_war_count", "defensive_war_count", "score", "vacation_mode",
+                 "city_count", "infrastructure", "offensive_war_count", "defensive_war_count", "score", "vm",
                  "minutes_inactive"]
 
     def __init__(self, data: dict):
@@ -48,30 +53,48 @@ class NationsStub:
         self.alliance_position = int(data["allianceposition"])
         self.city_count = data["cities"]
         if "infrastructure" in data:
-            self.infrastructure = int(data["infrastructure"])
+            self.infrastructure = float(data["infrastructure"])
         else:
-            self.infrastructure = data["totalinfrastructure"]
+            self.infrastructure = float(data["totalinfrastructure"])
         self.offensive_war_count = data["offensivewars"]
         self.defensive_war_count = data["defensivewars"]
         self.score = float(data["score"])
         if "vacmode" in data:
-            self.vacation_mode = bool(int(data["vacmode"]))
+            self.vm = bool(int(data["vacmode"]))
         else:
-            self.vacation_mode = bool(int(data["vmode"]))
+            self.vm = bool(int(data["vmode"]))
         self.minutes_inactive = data["minutessinceactive"]
+
+    def war_range(self):
+        """Returns the war range for this nation
+
+        return: A dictionary of war ranges. Keys: offensive, defensive. Each is its own dict with keys max, min
+        representing the war range"""
+        offensive = {"max": self.score * 1.75,
+                     "min": self.score * .75}
+        defensive = {"max": self.score / .75,
+                     "min": self.score / 1.75}
+
+        return {"offensive": offensive, "defensive": defensive}
 
 
 class BaseNation(NationsStub):
-    """Base class holding shared attributes between Nation and Alliance_Members API objects
+    """Parent class of Nation and Member, holding additional shared attributes
 
-    BaseNation extends NationsStub, which contains some, but not all, of the attributes common to Nation and Member"""
+    BaseNation extends NationsStub with more attributes shared between Nation and Alliance_Members API endpoints, but
+    which are not included in Nations."""
 
     __slots__ = ["soldiers", "tanks", "aircraft", "ships", "missiles", "nukes", "projects"]
 
     def __init__(self, data: dict):
         """Init with API data
 
-        :param data (dict): dictionary of nation data from Nation or Alliance_Members API"""
+        :param data (dict): dictionary of nation data from Nation or Alliance_Members API
+
+        Methods
+        ------------------
+
+        militarization - returns a dictionary of militarization levels"""
 
         super(BaseNation, self).__init__(data)
         # Nation API returns military values as strings
@@ -82,26 +105,33 @@ class BaseNation(NationsStub):
         self.missiles = int(data["missiles"])
         self.nukes = int(data["nukes"])
         # Nation API bizarrely returns project booleans as strings of ints
-        self.projects = {"bauxiteworks": bool(int(data["bauxiteworks"])),
-                         "ironworks": bool(int(data["ironworks"])),
-                         "arms_stockpile": bool(int(data["armsstockpile"])),
-                         "emergency_gasoline_reserve": bool(int(data["emgasreserve"])),
-                         "mass_irrigation": bool(int(data["massirrigation"])),
-                         "international_trade_center": bool(int(data["inttradecenter"])),
-                         "missile_launch_pad": bool(int(data["missilepad"])),
-                         "nuclear_research_facility": bool(int(data["nuclearresfac"])),
-                         "iron_dome": bool(int(data["irondome"])),
-                         "vital_defense_system": bool(int(data["vitaldefsys"])),
-                         "uranium_enrichment_program": bool(int(data["uraniumenrich"])),
-                         "intelligence_agency": bool(int(data["intagncy"])),
-                         "propaganda_bureau": bool(int(data["propbureau"])),
-                         "center_for_civil_engineering": bool(int(data["cenciveng"]))}
+        self.projects = {"bw": bool(int(data["bauxiteworks"])),
+                         "iw": bool(int(data["ironworks"])),
+                         "as": bool(int(data["armsstockpile"])),
+                         "egr": bool(int(data["emgasreserve"])),
+                         "mi": bool(int(data["massirrigation"])),
+                         "itc": bool(int(data["inttradecenter"])),
+                         "mlp": bool(int(data["missilelpad"])),
+                         "nrf": bool(int(data["nuclearresfac"])),
+                         "id": bool(int(data["irondome"])),
+                         "vds": bool(int(data["vitaldefsys"])),
+                         "uep": bool(int(data["uraniumenrich"])),
+                         "ia": bool(int(data["intagncy"])),
+                         "pb": bool(int(data["propbureau"])),
+                         "cce": bool(int(data["cenciveng"]))}
+
+    def militarization(self):
+        """ Calculates the nation's militarization levels
+
+        return: a dictionary of militarization levels for the nation overall plus each unit type. Keys: (soldiers,
+        tanks, aircraft, ships, total). Values are calculated as fractions and are NOT converted to percentages."""
+        return formulas.militarization(self.city_count, self.soldiers, self.tanks, self.aircraft, self.ships)
 
 
 class Nation(BaseNation):
     """ Object representing a PW Nation as given by the Nation API"""
 
-    __slots__ = ["title", "continent", "social_policy", "unique_id", "government", "domestic_policy", "date_created",
+    __slots__ = ["nation_title", "continent", "social_policy", "unique_id", "government", "domestic_policy", "date_created",
                  "days_old", "flag_url", "ruler_title", "economic_policy", "approval_rating", "nation_rank", "city_ids",
                  "cities", "latitude", "longitude", "population", "gdp", "land", "soldiers_lost", "soldiers_killed",
                  "tanks_lost", "tanks_killed", "aircraft_lost", "aircraft_killed", "ships_lost", "ships_killed",
@@ -111,10 +141,10 @@ class Nation(BaseNation):
 
     def __init__(self, data: dict):
         super(Nation, self).__init__(data)
-        self.title = data["prename"]
+        self.nation_title = data["prename"]
         self.continent = data["continent"]
         self.social_policy = data["socialpolicy"]
-        self.unique_id = data["uiqueid"]
+        self.unique_id = data["uniqueid"]
         self.government = data["government"]
         self.domestic_policy = data["domestic_policy"]
         self.date_created = data["founded"]
@@ -124,7 +154,7 @@ class Nation(BaseNation):
         self.economic_policy = data["ecopolicy"]
         self.approval_rating = data["approvalrating"]
         self.nation_rank = data["nationrank"]
-        self.city_ids = data["cityids"]
+        self.city_ids = [int(city_id) for city_id in data["cityids"]]
         # Dict to store related city objects that may be created. Key = city name.
         self.cities = {}
         # Dict to store list of war objects
@@ -137,11 +167,11 @@ class Nation(BaseNation):
         self.gdp = float(data["gdp"])
         self.soldiers_lost = int(data["soldiercasualties"])
         self.soldiers_killed = int(data["soldierskilled"])
-        self.tanks_lost = int(data["tankcasualites"])
+        self.tanks_lost = int(data["tankcasualties"])
         self.tanks_killed = int(data["tankskilled"])
         self.aircraft_lost = int(data["aircraftcasualties"])
         self.aircraft_killed = int(data["aircraftkilled"])
-        self.ships_lost = int(data["shipcasulaties"])
+        self.ships_lost = int(data["shipcasualties"])
         self.ships_killed = int(data["shipskilled"])
         self.missiles_launched = int(data["missilelaunched"])
         self.missiles_eaten = int(data["missileseaten"])
@@ -156,3 +186,33 @@ class Nation(BaseNation):
         self.radiation = data["radiation_index"]
         self.season = data["season"]
         self.espionage_available = data["espionage_available"]
+
+    def get_wars(self):
+        offensive = []
+        for war_id in self.offensive_war_ids:
+            war = get_war(war_id)
+            offensive.append(war)
+        defensive = []
+        for war_id in self.defensive_war_ids:
+            war = get_war(war_id)
+            defensive.append(war)
+
+
+class War:
+    """Object representing a PW War, as returned by the game's Wars API"""
+
+    __slots__ = ["war_id", "ongoing", "start_date", "attacker_id", "attacker_alliance", "attacker_is_applicant",
+                 "defender_id", "defender_alliance", "defender_is_applicant", "attacker_offering_peace", "war_reason",
+                 "ground_control"]
+
+    def __init__(self, data, war_id):
+        # The War API is bugged to always return war_id as 0, so it gets passed in by the get_war function instead
+        self.war_id: int = war_id
+        self.ongoing = data["war_ended"]
+        self.start_date = data["date"]
+        self.attacker_id = data["aggressor_id"]
+        self.attacker_alliance = data["aggressor_alliance"]
+        self.attacker_is_applicant = data["aggressor_is_applicant"]
+        self.defender_id = data["defender_id"]
+        self.attacker_offering_peace = data["aggressor_offering_peace"]
+        self.ground_control = data["ground_control"]
