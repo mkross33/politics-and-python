@@ -198,6 +198,41 @@ class Nation(BaseNation):
             defensive.append(war)
 
 
+class Member(BaseNation):
+    """ Object representing a member nation, as given by the alliance_members API """
+    # Due to multiple inheritence issues with subclass CompleteMember, this class cannot use slots.
+
+    # *args represents the optional dict for nation API data, passed into Nation class as part of the multiple
+    # inheritence chain of CompleteMember
+    def __init__(self, data, *args: dict):
+        # Different data is sent to different parent classes depending on if this is being instantiated, or called as
+        # a super class
+        if args:
+            super(Member, self).__init__(*args)
+        else:
+            super(Member, self).__init__(data)
+        self.city_cooldown = data['cityprojecttimerturns']
+        # all numerical values are returned by the API as strings
+        self.money = float(data["money"])
+        self.food = float(data["food"])
+        self.uranium = float(data["uranium"])
+        self.coal = float(data["coal"])
+        self.oil = float(data["oil"])
+        self.bauxite = float(data["bauxite"])
+        self.lead = float(data["lead"])
+        self.iron = float(data["iron"])
+        self.gasoline = float(data["gasoline"])
+        self.munitions = float(data["munitions"])
+        self.aluminum = float(data["aluminum"])
+        self.steel = float(data["steel"])
+        self.credits = float(data["credits"])
+        self.spies = float(data["spies"])
+
+
+class CompleteMember(Member, Nation):
+    def __init__(self, member_data, nation_data):
+        super(CompleteMember, self).__init__(member_data, nation_data)
+
 class War:
     """Object representing a PW War, as returned by the game's Wars API"""
 
