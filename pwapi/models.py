@@ -13,7 +13,7 @@ CompleteMember - Combines Nation and Member class to provide all accessible nati
 from pwapi import formulas
 
 
-class NationsStub:
+class NationStub:
     """Representation of Nations API data
 
     The NationStub object contains the parameters returned for each nation by the PW Nations API. This API returns a
@@ -24,10 +24,9 @@ class NationsStub:
 
     war_range: returns a dictionary containing the offensive and defensive war ranges for the nation"""
 
-
-    __slots__ = ["nation_id", "nation", "ruler", "war_policy", "color", "alliance", "alliance_id", "alliance_position",
-                 "city_count", "infrastructure", "offensive_war_count", "defensive_war_count", "score", "vm",
-                 "minutes_inactive"]
+    __slots__ = ["nation_id", "nation_name", "leader_name", "war_policy", "color", "alliance_name", "alliance_id",
+                 "alliance_position", "city_count", "infrastructure", "offensive_war_count", "defensive_war_count",
+                 "score", "vacation_mode", "minutes_inactive"]
 
     def __init__(self, data: dict):
         """Init with API data
@@ -39,16 +38,16 @@ class NationsStub:
         # than are used in Nations or Alliance_Members. Hence retyping or logic looking for specific keys
         self.nation_id = int(data['nationid'])
         if "nation" in data:
-            self.nation = data["nation"]
+            self.nation_name = data["nation"]
         else:
-            self.nation = data["name"]
+            self.nation_name = data["name"]
         if "leadername" in data:
-            self.ruler = data["leadername"]
+            self.leader_name = data["leadername"]
         else:
-            self.ruler = data["leader"]
+            self.leader_name = data["leader"]
         self.war_policy = data["war_policy"]
         self.color = data["color"]
-        self.alliance = data["alliance"]
+        self.alliance_name = data["alliance"]
         self.alliance_id = int(data["allianceid"])
         self.alliance_position = int(data["allianceposition"])
         self.city_count = data["cities"]
@@ -60,9 +59,9 @@ class NationsStub:
         self.defensive_war_count = data["defensivewars"]
         self.score = float(data["score"])
         if "vacmode" in data:
-            self.vm = bool(int(data["vacmode"]))
+            self.vacation_mode = bool(int(data["vacmode"]))
         else:
-            self.vm = bool(int(data["vmode"]))
+            self.vacation_mode = bool(int(data["vmode"]))
         self.minutes_inactive = data["minutessinceactive"]
 
     def war_range(self):
@@ -78,7 +77,7 @@ class NationsStub:
         return {"offensive": offensive, "defensive": defensive}
 
 
-class BaseNation(NationsStub):
+class BaseNation(NationStub):
     """Parent class of Nation and Member, holding additional shared attributes
 
     BaseNation extends NationsStub with more attributes shared between Nation and Alliance_Members API endpoints, but
@@ -131,7 +130,8 @@ class BaseNation(NationsStub):
 class Nation(BaseNation):
     """ Object representing a PW Nation as given by the Nation API"""
 
-    __slots__ = ["nation_title", "continent", "social_policy", "unique_id", "government", "domestic_policy", "date_created",
+    __slots__ = ["nation_title", "continent", "social_policy", "unique_id", "government", "domestic_policy",
+                 "date_created",
                  "days_old", "flag_url", "ruler_title", "economic_policy", "approval_rating", "nation_rank", "city_ids",
                  "cities", "latitude", "longitude", "population", "gdp", "land", "soldiers_lost", "soldiers_killed",
                  "tanks_lost", "tanks_killed", "aircraft_lost", "aircraft_killed", "ships_lost", "ships_killed",
@@ -200,6 +200,7 @@ class Nation(BaseNation):
 
 class Member(BaseNation):
     """ Object representing a member nation, as given by the alliance_members API """
+
     # Due to multiple inheritence issues with subclass CompleteMember, this class cannot use slots.
 
     # *args represents the optional dict for nation API data, passed into Nation class as part of the multiple
@@ -230,8 +231,11 @@ class Member(BaseNation):
 
 
 class CompleteMember(Member, Nation):
+    """ Representation of all available data about a nation, combining Nation API and members API data."""
+
     def __init__(self, member_data, nation_data):
         super(CompleteMember, self).__init__(member_data, nation_data)
+
 
 class War:
     """Object representing a PW War, as returned by the game's Wars API"""
